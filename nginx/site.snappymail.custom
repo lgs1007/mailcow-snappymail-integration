@@ -1,0 +1,33 @@
+# SnappyMail route and mailcow SSO integration.
+# Intended for /opt/mailcow-dockerized/data/conf/nginx/site.snappymail.custom
+
+location = /SOGo/so {
+    return 302 /mail/;
+}
+
+location = /SOGo/so/ {
+    return 302 /mail/;
+}
+
+location = /mail {
+    return 301 /mail/;
+}
+
+location ^~ /mail/ {
+    auth_request /mailcow-auth-verify;
+    auth_request_set $snappy_user $upstream_http_x_user;
+
+    # Overwrite client values; never trust a browser-supplied Remote-User.
+    proxy_set_header Remote-User $snappy_user;
+    proxy_set_header Authorization "";
+
+    proxy_pass http://snappymail:8888/;
+
+    proxy_set_header Host $http_host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header X-Forwarded-Host $http_host;
+
+    client_max_body_size 0;
+}

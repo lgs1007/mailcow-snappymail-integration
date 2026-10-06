@@ -1,0 +1,15 @@
+services:
+  snappymail:
+    image: ghcr.io/the-djmaze/snappymail:v2.38.2
+    container_name: snappymail
+    restart: unless-stopped
+    volumes:
+      - /opt/snappymail/data:/var/lib/snappymail
+      - /opt/mailcow-dockerized/data/conf/sogo/sieve.creds:/run/secrets/mailcow-sieve-creds:ro
+    networks:
+      - mailcow-network
+
+networks:
+  mailcow-network:
+    external: true
+    name: mailcowdockerized_mailcow-network

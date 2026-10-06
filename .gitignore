@@ -1,0 +1,32 @@
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+*.creds
+sieve.creds
+application.ini
+plugin-proxy-auth.json
+*_auth.json
+*auth.json
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Runtime / logs / backups
+*.log
+*.bak
+*.backup
+*.dump
+*.sqlite
+*.db
+backups/
+data/
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Generated archives (release ZIP is created outside repository root)
+*.zip

@@ -1,0 +1,39 @@
+# Common mailcow session authentication helper.
+# Intended for /opt/mailcow-dockerized/data/conf/nginx/site.mailcow-auth.custom
+
+location = /mailcow-auth-verify {
+    internal;
+
+    proxy_set_header X-Original-URI /SOGo/so/;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Host $http_host;
+    proxy_set_header Content-Length "";
+
+    proxy_pass_request_body off;
+    proxy_pass http://127.0.0.1:65510/sogo-auth;
+}
+
+# Browser-readable session state used by mailcow-session-sync.
+# A successful request intentionally counts as mailcow session activity.
+location = /mailcow-session-check {
+    limit_except GET {
+        deny all;
+    }
+
+    proxy_set_header X-Original-URI /SOGo/so/;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header Host $http_host;
+    proxy_set_header Content-Length "";
+
+    proxy_pass_request_body off;
+    proxy_pass http://127.0.0.1:65510/sogo-auth;
+
+    proxy_hide_header X-Auth;
+    proxy_hide_header X-Auth-Type;
+    proxy_hide_header X-User;
+
+    add_header X-Mailcow-User $upstream_http_x_user always;
+    add_header Cache-Control "no-store, no-cache, must-revalidate, max-age=0" always;
+    add_header Pragma "no-cache" always;
+    add_header Expires "0" always;
+}

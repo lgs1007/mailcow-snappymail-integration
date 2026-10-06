@@ -1,0 +1,72 @@
+--- a/index.php
++++ b/index.php
+@@ -21,6 +21,38 @@
+ 		$this->addHook('login.credentials', 'MapEmailAddress');
+ 	}
+ 
++
++	/*
++	 * mailcow integration modification:
++	 * Dovecot master credentials are rotated by mailcow and exposed to this
++	 * container through a read-only bind mount. Read the current value for each
++	 * ProxyAuth login. If the file is unavailable or malformed, retain the
++	 * upstream plugin's configured static credentials as a fallback.
++	 */
++	private const MAILCOW_MASTER_CREDS_FILE = '/run/secrets/mailcow-sieve-creds';
++	private static string $mailcowMasterUser = '';
++
++	private function GetMasterCredentials() : array
++	{
++		$sMasterUser = \trim($this->Config()->getDecrypted('plugin', 'master_user', ''));
++		$sMasterPassword = \trim($this->Config()->getDecrypted('plugin', 'master_password', ''));
++
++		$sRaw = @\file_get_contents(self::MAILCOW_MASTER_CREDS_FILE);
++		if (\is_string($sRaw)) {
++			$sRaw = \trim($sRaw);
++			$iSeparator = \strpos($sRaw, ':');
++			if (false !== $iSeparator) {
++				$sDynamicUser = \trim(\substr($sRaw, 0, $iSeparator));
++				$sDynamicPassword = \substr($sRaw, $iSeparator + 1);
++				if ('' !== $sDynamicUser && '' !== $sDynamicPassword) {
++					return [$sDynamicUser, $sDynamicPassword];
++				}
++			}
++		}
++
++		return [$sMasterUser, $sMasterPassword];
++	}
++
+ 	/* by https://gist.github.com/tott/7684443 */
+ 	/**
+  	 * Check if a given ip is in a network
+@@ -50,7 +82,10 @@
+ 		$sMsg = "sEmail= " . $sEmail;
+ 		$oLogger->Write($sMsg, $sLevel, $sPrefix);
+ 
+-		$sMasterUser = \trim($this->Config()->getDecrypted('plugin', 'master_user', ''));
++		$sMasterUser = static::$mailcowMasterUser;
++		if ('' === $sMasterUser) {
++			[$sMasterUser] = $this->GetMasterCredentials();
++		}
+ 		$sMasterSeparator = \trim($this->Config()->getDecrypted('plugin', 'master_separator', ''));
+ 
+ 		/* remove superuser from email for proper UI */
+@@ -72,7 +107,8 @@
+ 		$sLevel = LOG_DEBUG;
+ 		$sPrefix = "ProxyAuth";
+ 
+-		$sMasterUser = \trim($this->Config()->getDecrypted('plugin', 'master_user', ''));
++		[$sMasterUser, $sMasterPassword] = $this->GetMasterCredentials();
++		static::$mailcowMasterUser = $sMasterUser;
+ 		$sMasterSeparator = \trim($this->Config()->getDecrypted('plugin', 'master_separator', ''));
+ 		$sHeaderName = \trim($this->Config()->getDecrypted('plugin', 'header_name', ''));
+ 
+@@ -118,7 +154,7 @@
+ 		if ($sProxyRequest) {
+ 			/* create master user login from remote user header and settings */
+ 			$sEmail = $sRemoteUser . $sMasterSeparator . $sMasterUser;
+-			$sPassword =  new \SnappyMail\SensitiveString(\trim($this->Config()->getDecrypted('plugin', 'master_password', '')));
++			$sPassword = new \SnappyMail\SensitiveString($sMasterPassword);
+ 
+ 			try
+ 			{
